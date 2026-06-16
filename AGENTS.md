@@ -345,3 +345,15 @@ Write one TSV file per evaluation to `batch/tracker-additions/{num}-{company-slu
 - No markdown bold (`**`) in status field
 - No dates in status field (use the date column)
 - No extra text (use the notes column)
+
+## Cursor Cloud specific instructions
+
+This repo is a **collection of one-shot Node.js (`.mjs`) CLI scripts** plus markdown "modes" — there is **no long-running server, daemon, or listening port** to start. The actual "runtime" is an AI coding CLI that reads `modes/*.md` and invokes the scripts; in Cursor Cloud, you (the agent) play that role and run the scripts directly.
+
+- **Dependencies** are refreshed automatically by the startup update script (`npm install` + `npx playwright install chromium`). Chromium is required for CV PDF generation (`generate-pdf.mjs`) and browser-based liveness checks.
+- **User-layer files are gitignored and absent on a fresh checkout** (`cv.md`, `config/profile.yml`, `modes/_profile.md`, `portals.yml`). `node doctor.mjs` reports these as "missing" until created. To run the pipeline end-to-end, seed them from the shipped templates: `cp examples/cv-example.md cv.md`, `cp config/profile.example.yml config/profile.yml`, `cp modes/_profile.md` from `modes/_profile.template.md`, `cp templates/portals.example.yml portals.yml`. Do NOT commit these (they're personal data).
+- **The scanner needs data files to exist first.** `node scan.mjs` exits with `ENOENT: ... data/pipeline.md` if `data/pipeline.md` / `data/applications.md` are missing (also gitignored). Create them before scanning. `scan.mjs` hits live ATS APIs over the network (zero-auth, zero-token).
+- **PDF flow:** fill `templates/cv-template.html` (`{{TOKEN}}` placeholders) from `cv.md`, then `node generate-pdf.mjs <input.html> <output.pdf>`. Output lands in `output/` (gitignored).
+- **Lint/test:** there is no ESLint config; the canonical check is `node test-all.mjs` (syntax + behavior, ~280 assertions). Use `node test-all.mjs --quick` to skip the Go dashboard build. Warnings about missing fonts/user-data in a clean checkout are expected and non-fatal.
+- **Go dashboard** (`dashboard/`, optional TUI): `cd dashboard && go build ./...`. `go.mod` pins `go 1.24`, so the Go toolchain auto-downloads 1.24.x on first build even if the system `go` is older.
+- The `doctor` warning "Playwright MCP tools not detected" is expected in this environment; it only affects SPA/browser-driven JD fetching, not the core scripts.
